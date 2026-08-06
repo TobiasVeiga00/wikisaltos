@@ -1,0 +1,9 @@
+# El repositorio guarda todo con saltos de línea LF, sin importar el sistema
+# operativo de quien commitea. Sin esto, alguien en Windows ve el proyecto
+# entero como modificado la primera vez que lo toca.
+* text=auto eol=lf
+
+# Binarios: que Git no intente convertir nada.
+*.png binary
+*.jpg binary
+*.ico binary

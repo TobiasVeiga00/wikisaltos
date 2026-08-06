@@ -1,0 +1,16 @@
+# Dependencias y salidas de compilación
+node_modules
+dist
+dist-ssr
+.vite
+
+# Notas de trabajo, fuera del control de versiones a propósito.
+docs
+
+# Registro autogenerado de herramientas locales: contiene rutas absolutas de la
+# máquina de quien lo genera, incluido su nombre de usuario.
+.atl
+
+# Locales del entorno
+*.local
+.DS_Store
