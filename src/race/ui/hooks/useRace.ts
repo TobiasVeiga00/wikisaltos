@@ -2,8 +2,7 @@ import { useCallback, useEffect, useReducer, useRef } from 'react'
 import { navigateTo } from '../../application/navigateTo'
 import { resolveBestPath } from '../../application/resolveBestPath'
 import { startRace } from '../../application/startRace'
-import type { ArticleContent } from '../../domain/Article'
-import type { ArticleReader } from '../../domain/ports/ArticleReader'
+import type { ArticleContent, ArticleReader } from '../../domain/ports/ArticleReader'
 import type { PathFinder } from '../../domain/ports/PathFinder'
 import type { RaceGenerator } from '../../domain/ports/RaceGenerator'
 import { finish, type Race, type RaceOutcome } from '../../domain/Race'
@@ -137,31 +136,35 @@ export function useRace(ports: RacePorts, options: UseRaceOptions) {
 
   useEffect(() => () => abortRef.current?.abort(), [])
 
-  const start = useCallback(async () => {
-    abortRef.current?.abort()
-    const controller = new AbortController()
-    abortRef.current = controller
-    runRef.current += 1
-    const run = runRef.current
-    const { signal } = controller
+  const start = useCallback(
+    async (dayId: string | null = null) => {
+      abortRef.current?.abort()
+      const controller = new AbortController()
+      abortRef.current = controller
+      runRef.current += 1
+      const run = runRef.current
+      const { signal } = controller
 
-    dispatch({ type: 'PREPARING' })
-    try {
-      const { race, article } = await startRace(
-        ports.generator,
-        ports.reader,
-        options.jumps,
-        options.limitMs,
-        Date.now,
-        signal,
-      )
-      if (run !== runRef.current) return
-      dispatch({ type: 'STARTED', race, article })
-    } catch (error) {
-      if (run !== runRef.current || signal.aborted) return
-      dispatch({ type: 'FAILED', message: messageOf(error) })
-    }
-  }, [ports.generator, ports.reader, options.jumps, options.limitMs])
+      dispatch({ type: 'PREPARING' })
+      try {
+        const { race, article } = await startRace(
+          ports.generator,
+          ports.reader,
+          options.jumps,
+          options.limitMs,
+          Date.now,
+          dayId,
+          signal,
+        )
+        if (run !== runRef.current) return
+        dispatch({ type: 'STARTED', race, article })
+      } catch (error) {
+        if (run !== runRef.current || signal.aborted) return
+        dispatch({ type: 'FAILED', message: messageOf(error) })
+      }
+    },
+    [ports.generator, ports.reader, options.jumps, options.limitMs],
+  )
 
   const navigate = useCallback(
     async (title: string) => {

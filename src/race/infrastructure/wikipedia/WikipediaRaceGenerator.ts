@@ -3,6 +3,7 @@ import { sameTitle, titleKey } from '../../../shared/titles'
 import type { ArticleSummary } from '../../domain/Article'
 import type { RaceGenerator, RacePair } from '../../domain/ports/RaceGenerator'
 import { isDullTarget } from './dullTargets'
+import { choicesFor, type RaceChoices } from './raceChoices'
 import { pickSeed } from './seeds'
 import type { WikiGraph } from './WikiGraph'
 
@@ -35,6 +36,10 @@ const RECENT_TARGET_MEMORY = 40
  * bound on the shortest one, known before the clock starts. Everything here is
  * game policy — what makes a good opening, a fair ending, a walkable branch —
  * kept apart from the graph queries it leans on.
+ *
+ * Given a seed the whole thing turns deterministic, which is what makes a daily
+ * challenge possible. The session memories are skipped in that case: what one
+ * player saw yesterday must not change the race everyone gets today.
  */
 export class WikipediaRaceGenerator implements RaceGenerator {
   private readonly recentOrigins = new RecentTitles(RECENT_ORIGIN_MEMORY)
@@ -42,12 +47,19 @@ export class WikipediaRaceGenerator implements RaceGenerator {
 
   constructor(private readonly graph: WikiGraph) {}
 
-  async buildRacePair(jumps: number, signal?: AbortSignal): Promise<RacePair> {
-    const origin = pickSeed((title) => this.recentOrigins.has(title))
-    this.recentOrigins.remember(origin)
+  async buildRacePair(jumps: number, seed: string | null, signal?: AbortSignal): Promise<RacePair> {
+    const choices = choicesFor(seed)
+    const shared = seed !== null
+
+    const origin = pickSeed({
+      fraction: (salt) => choices.fraction(salt),
+      pick: (items, salt) => choices.pick(items, salt),
+      ...(shared ? {} : { wasRecentlyUsed: (title) => this.recentOrigins.has(title) }),
+    })
+    if (!shared) this.recentOrigins.remember(origin)
 
     const walk = [origin]
-    let links = await this.graph.sampleLinks(origin, signal)
+    let links = await this.graph.sampleLinks(origin, choices.fraction('slice 0'), signal)
     // A random walk can circle back into the origin's own neighbourhood. Those
     // targets are one click away, which makes for a race that is over before it
     // starts — and the origin's links are already in hand, so ruling them out
@@ -58,10 +70,14 @@ export class WikipediaRaceGenerator implements RaceGenerator {
     // unpredictable. Only the ending is chosen with care.
     let retries = 0
     for (let step = 0; step < jumps - 1 && links.length > 0; step += 1) {
-      const next = pickRandom(this.usable(links, walk))
-      if (next === null) break
+      const next = choices.pick(this.usable(links, walk), `step ${step} try ${retries}`)
+      if (next === undefined) break
 
-      const nextLinks = await this.graph.sampleLinks(next, signal)
+      const nextLinks = await this.graph.sampleLinks(
+        next,
+        choices.fraction(`slice ${step + 1}`),
+        signal,
+      )
       const thin = nextLinks.length < MIN_STEP_DEGREE
       if (nextLinks.length === 0 || (thin && retries < MAX_STEP_RETRIES)) {
         retries += 1
@@ -73,10 +89,10 @@ export class WikipediaRaceGenerator implements RaceGenerator {
       links = nextLinks
     }
 
-    const target = await this.pickTarget(links, walk, oneClickAway, signal)
+    const target = await this.pickTarget(links, walk, oneClickAway, choices, shared, signal)
     if (target === null) throw new Error('No se pudo armar una carrera. Probá de nuevo.')
 
-    this.recentTargets.remember(target.title)
+    if (!shared) this.recentTargets.remember(target.title)
     walk.push(target.title)
     return { origin: { title: origin }, target, walk }
   }
@@ -90,6 +106,8 @@ export class WikipediaRaceGenerator implements RaceGenerator {
     links: string[],
     walk: string[],
     oneClickAway: ReadonlySet<string>,
+    choices: RaceChoices,
+    shared: boolean,
     signal?: AbortSignal,
   ): Promise<ArticleSummary | null> {
     const usable = this.usable(links, walk)
@@ -98,7 +116,7 @@ export class WikipediaRaceGenerator implements RaceGenerator {
     let fallback: ArticleSummary | null = null
 
     for (let round = 0; round < MAX_TARGET_ROUNDS && pool.length > 0; round += 1) {
-      const candidates = sample(pool, TARGET_CANDIDATES)
+      const candidates = choices.sample(pool, `target ${round}`, TARGET_CANDIDATES)
       // Candidates are filtered again after the lookup, not only before it:
       // summaries resolve redirects, so a link with a different name can turn
       // out to be an article the walk already passed through — the origin
@@ -107,7 +125,7 @@ export class WikipediaRaceGenerator implements RaceGenerator {
         (summary) => !walk.some((seen) => sameTitle(seen, summary.title)),
       )
       const fresh = summaries.filter(
-        (summary) => !isDullTarget(summary) && !this.recentTargets.has(summary.title),
+        (summary) => !isDullTarget(summary) && (shared || !this.recentTargets.has(summary.title)),
       )
 
       const recognisable = fresh.find(
@@ -134,18 +152,4 @@ export class WikipediaRaceGenerator implements RaceGenerator {
       (title) => !/^\d{1,4}$/.test(title) && !walk.some((seen) => sameTitle(seen, title)),
     )
   }
-}
-
-function pickRandom(titles: string[]): string | null {
-  return titles[Math.floor(Math.random() * titles.length)] ?? null
-}
-
-function sample(titles: string[], size: number): string[] {
-  const remaining = [...titles]
-  const picked: string[] = []
-  while (picked.length < size && remaining.length > 0) {
-    const [taken] = remaining.splice(Math.floor(Math.random() * remaining.length), 1)
-    if (taken !== undefined) picked.push(taken)
-  }
-  return picked
 }

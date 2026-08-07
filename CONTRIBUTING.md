@@ -10,7 +10,7 @@ algunas convicciones bastante marcadas, y saberlas de antemano te ahorra rehacer
 - **Una idea por pull request.** Un PR que arregla un bug y de paso reordena tres
   archivos es imposible de revisar y de revertir.
 - **Todo tiene que pasar `npm run check`** antes de abrir el PR. Eso corre tipos, linter
-  y los 95 tests de una sola vez. Si falla, el PR no se mira.
+  y los 140 tests de una sola vez. Si falla, el PR no se mira.
 - El juego tiene una dirección de diseño muy marcada. Si tu aporte la cambia (agregar
   puntajes, sonidos, animaciones, un modo nuevo), **abrí un issue primero** y charlémoslo
   antes de que escribas nada.
@@ -63,8 +63,8 @@ todos los que jueguen seguido, y no lo vas a ver en tu máquina probando una par
 
 ### Al sanitizador se lo toca con tests
 
-`sanitizeArticleHtml` es lo único entre el jugador y HTML de terceros: su salida va a
-`dangerouslySetInnerHTML` y React no la vuelve a revisar.
+`sanitizeArticle` es lo único entre el jugador y HTML de terceros: nada río abajo vuelve
+a revisar lo que devuelve.
 
 Funciona con **lista blanca**, no con lista negra. Si necesitás permitir una etiqueta o
 un atributo nuevo, agregalo a la lista **y sumá el test que demuestra por qué es seguro**.
@@ -79,6 +79,17 @@ memo React reconstruye el artículo entero cada vez. Como un clic exige que el
 clics de forma aparentemente aleatoria.
 
 Si le agregás una prop, tiene que ser estable entre renders.
+
+### El desafío del día no puede depender de vos
+
+Todo lo que decide una carrera diaria tiene que derivarse de la fecha y nada más. Si
+agregás una decisión nueva al generador, pasala por `RaceChoices`, y no la hagas depender
+de nada que varíe entre jugadores —historial, azar, hora local—, porque entonces dos
+personas dejan de jugar la misma carrera.
+
+Y no elijas por posición: las listas son enlaces de Wikipedia y se editan durante el día.
+Usá `pickStable` y `sampleStable`, que eligen por hash y no se inmutan si aparece o
+desaparece otro elemento.
 
 ### Medí antes de optimizar
 

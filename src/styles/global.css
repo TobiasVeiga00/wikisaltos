@@ -202,6 +202,20 @@ body {
   color: var(--signal);
 }
 
+.start__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.start__note {
+  margin: -0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  max-width: 26rem;
+}
+
 .start__error {
   margin: 0;
   font-size: 0.9rem;
@@ -669,6 +683,15 @@ body {
 
 .result__head {
   width: 100%;
+}
+
+.result__day {
+  margin: 0 0 0.35rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--signal);
 }
 
 .result__headline {

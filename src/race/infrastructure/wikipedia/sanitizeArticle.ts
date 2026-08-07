@@ -146,14 +146,20 @@ const CLUTTER_SELECTORS = [
 ].join(', ')
 
 /**
- * Turns raw `action=parse` HTML into something safe to inject and playable.
+ * Turns raw `action=parse` HTML into a sanitised element, ready to insert.
  *
  * This function is the only thing standing between the player and third-party
- * HTML: the result goes straight into `dangerouslySetInnerHTML`, and React does
- * not re-check it. Every `href` is removed so the page cannot navigate anywhere,
- * and article links are re-tagged with the title they lead to.
+ * HTML: nothing downstream re-checks its output. Every `href` is removed so the
+ * page cannot navigate anywhere, and article links are re-tagged with the title
+ * they lead to.
+ *
+ * It returns a detached element rather than a string so the browser does not
+ * have to parse the article all over again on insertion. It is an element and
+ * not a `DocumentFragment` for a subtle reason: inserting a fragment empties it,
+ * so a second insertion of the same article would wipe the page. Moving an
+ * element is idempotent.
  */
-export function sanitizeArticleHtml(rawHtml: string): string {
+export function sanitizeArticle(rawHtml: string): HTMLElement {
   const doc = new DOMParser().parseFromString(rawHtml, 'text/html')
 
   doc.querySelectorAll(CLUTTER_SELECTORS).forEach((node) => {
@@ -186,7 +192,11 @@ export function sanitizeArticleHtml(rawHtml: string): string {
     stripAttributes(element)
   }
 
-  return doc.body.innerHTML
+  // Adopted into the live document so it can be inserted without the browser
+  // having to move it across documents later.
+  const body = document.createElement('div')
+  body.append(...Array.from(doc.body.childNodes).map((node) => document.adoptNode(node)))
+  return body
 }
 
 function stripAttributes(element: Element): void {

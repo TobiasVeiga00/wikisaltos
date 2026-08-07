@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, type KeyboardEvent, type MouseEvent } from 'react'
-import type { ArticleContent } from '../../../domain/Article'
+import type { ArticleContent } from '../../../domain/ports/ArticleReader'
 import { Spinner } from '../atoms/Spinner'
 
 /** Long enough to notice the rejection, short enough not to be in the way. */
@@ -15,13 +15,13 @@ interface ArticleViewerProps {
  * Memoised, and not as a micro-optimisation — without it the game loses clicks.
  *
  * The countdown ticks five times a second, and every tick re-rendered this
- * component, which made React re-apply `dangerouslySetInnerHTML` and rebuild the
- * entire article: measured at ten full rebuilds in two seconds on an idle page.
- * A mouse press and its release landing on opposite sides of one of those
- * rebuilds are, to the browser, two events on two different elements — so no
- * click is ever produced. That is the "sometimes it takes it, sometimes you have
- * to click several times" the game was showing, and why it felt random: it
- * depended on where the click fell inside the 200 ms cycle.
+ * component, which rebuilt the entire article: measured at ten full rebuilds in
+ * two seconds on an idle page. A mouse press and its release landing on opposite
+ * sides of one of those rebuilds are, to the browser, two events on two
+ * different elements — so no click is ever produced. That is the "sometimes it
+ * takes it, sometimes you have to click several times" the game was showing, and
+ * why it felt random: it depended on where the click fell inside the 200 ms
+ * cycle.
  *
  * The props must stay stable for this to hold. `onNavigate` is memoised by the
  * container for exactly that reason.
@@ -35,9 +35,11 @@ export const ArticleViewer = memo(function ArticleViewer({
   const scrollRef = useRef<HTMLDivElement>(null)
   const pendingRef = useRef<Element | null>(null)
 
-  // Depends on the article object, not its title: clicking a link back to the
-  // article you are already on is still a move, and should still start at the top.
+  // The body arrives already parsed, so inserting it is a move rather than a
+  // second parse. `replaceChildren` with an element is idempotent, which matters
+  // because effects can run twice in development.
   useEffect(() => {
+    contentRef.current?.replaceChildren(article.body)
     scrollRef.current?.scrollTo({ top: 0 })
   }, [article])
 
@@ -56,13 +58,10 @@ export const ArticleViewer = memo(function ArticleViewer({
    * pixels away reads as nothing having happened.
    */
   const activate = (anchor: Element | null) => {
-    if (anchor === null) return
+    if (anchor === null || loading) return
 
     const title = anchor.getAttribute('data-wr-title')
     if (title !== null) {
-      // No guard on `loading` here: a click during a jump used to vanish without
-      // a trace. The newest one simply takes over.
-      pendingRef.current?.classList.remove('wr-link--pending')
       anchor.classList.add('wr-link--pending')
       pendingRef.current = anchor
       onNavigate(title)
@@ -117,7 +116,6 @@ export const ArticleViewer = memo(function ArticleViewer({
           className="paper__body"
           onClick={handleClick}
           onKeyDown={handleKeyDown}
-          dangerouslySetInnerHTML={{ __html: article.html }}
         />
       </article>
     </div>

@@ -1,12 +1,6 @@
 export interface ArticleRef {
-  readonly title: string
-}
-
-export interface ArticleContent {
   /** Canonical title after MediaWiki resolves redirects. */
   readonly title: string
-  /** Sanitized HTML, safe to inject. */
-  readonly html: string
 }
 
 /**

@@ -12,6 +12,8 @@ todo en el navegador.
 - Cuando termina, el juego te muestra por dónde fuiste y cuál era el camino más corto.
 - Ganar encadena una **racha**. Se corta al abandonar o al quedarte sin tiempo, pero no
   al volver al menú: eso es navegación, no una derrota.
+- Hay un **desafío del día**: la misma carrera para todo el mundo, y un botón para copiar
+  tu resultado y compararlo con quien quieras.
 
 Se puede jugar entero con el teclado: Tab para moverte entre enlaces, Enter para saltar.
 
@@ -25,8 +27,9 @@ npm run dev        # http://localhost:5173
 Otros comandos:
 
 ```bash
-npm run check      # tipos + linter + tests, todo junto
-npm run test       # 95 tests
+npm run check           # tipos + linter + tests, todo junto
+npm run test:integration # comprueba el desafío diario contra la API real
+npm run test       # 140 tests
 npm run test:watch # tests en modo continuo
 npm run lint       # ESLint
 npm run format     # Prettier
@@ -104,7 +107,7 @@ src/race/
       WikipediaRaceGenerator.ts  política de juego: semillas, caminata, destino
       WikipediaPathFinder.ts     búsqueda bidireccional acotada
       WikipediaArticleReader.ts  leer y sanear un artículo
-      sanitizeArticleHtml.ts     la frontera de seguridad
+      sanitizeArticle.ts         la frontera de seguridad
   ui/              contenedores, hooks y componentes atómicos
   composition/     el único archivo que conecta adaptadores con puertos
 ```
@@ -123,8 +126,7 @@ depender de cómo se genera una carrera. Y el tipo que los agrupa lo declara el 
 contenedor. **No es una micro-optimización: sin eso el juego pierde clics.**
 
 El cronómetro actualiza cinco veces por segundo. Cada actualización re-renderizaba el
-visor, React volvía a aplicar `dangerouslySetInnerHTML` y reconstruía los veinte mil
-elementos del artículo. Un clic son un `mousedown` y un `mouseup`, y el navegador solo lo
+visor y reconstruía los veinte mil elementos del artículo. Un clic son un `mousedown` y un `mouseup`, y el navegador solo lo
 considera un clic si ambos caen sobre el mismo elemento: si caen a los lados de una
 reconstrucción, el clic nunca existe.
 
@@ -132,9 +134,8 @@ Si algún día agregás una prop al visor, tiene que ser estable entre renders.
 
 ## Seguridad
 
-`sanitizeArticleHtml` es lo único entre el jugador y HTML de terceros: su resultado va a
-`dangerouslySetInnerHTML` y React no lo vuelve a revisar. Por eso funciona con **lista
-blanca**, no con lista negra:
+`sanitizeArticle` es lo único entre el jugador y HTML de terceros: nada río abajo vuelve
+a revisar lo que devuelve. Por eso funciona con **lista blanca**, no con lista negra:
 
 - Solo sobreviven las etiquetas y atributos permitidos. Una etiqueta desconocida no se
   inyecta: se degrada a su texto, conservando los enlaces de adentro.
@@ -158,6 +159,10 @@ no al volumen sostenido. Si agregás una llamada nueva, tiene que pasar por esa 
 Cada pedido tiene 15 segundos de plazo, y un 429 se reintenta dos veces con espera
 creciente. El plazo no es cosmético: como la cola es una cadena, un pedido que nunca se
 resuelve bloquearía todos los siguientes para siempre, sin error y sin forma de salir.
+
+El sanitizador devuelve un elemento ya armado, no texto: pasar HTML como cadena obliga al
+navegador a parsear el artículo por segunda vez, y eso medía alrededor de 150 ms de hilo
+principal congelado en cada salto, tiempo durante el cual el juego no responde clics.
 
 El HTML del artículo viene de `action=parse` y se limpia antes de insertarlo: se sacan
 los scripts, los manejadores de eventos y **todos** los `href` reales, así la página no
@@ -184,6 +189,29 @@ esperarlo**: pidiendo `plcontinue=8739|0|M` los enlaces arrancan en la M.
 El juego pide entonces la primera página más una rebanada que empieza en una letra al
 azar posterior a donde cortó esa página. Dos pedidos, y el segundo siempre trae
 artículos que el primero no podía alcanzar.
+
+## El desafío del día
+
+Todos los que juegan un mismo día reciben exactamente la misma carrera, sin backend y sin
+guardar nada: se deriva de la fecha.
+
+El día se ancla a la hora argentina. No a la de quien juega, porque entonces alguien en
+Madrid tendría el desafío de mañana mientras acá todavía es hoy; y tampoco a UTC, que
+cambia a las nueve de la noche, justo en las horas en que se juega.
+
+La parte difícil no es que sea determinista, es que **siga siendo el mismo si alguien
+edita Wikipedia a mitad del día**. Elegir por posición se rompe con la primera edición:
+un enlace agregado corre toda la lista y la carrera pasa a ser otra en silencio.
+
+Por eso nada se elige por índice. Gana el título cuyo hash junto con la semilla del día
+sea menor, así que agregar o quitar _otros_ elementos nunca cambia al ganador — solo
+quitar al ganador mismo. Es la idea detrás del _rendezvous hashing_, y vive en
+`shared/deterministic.ts`.
+
+Dos detalles que parecen menores y no lo son: para el desafío del día se desactivan las
+memorias de orígenes y destinos recientes, porque el historial de un jugador no puede
+cambiar la carrera que recibe todo el mundo; y si Wikipedia limita las peticiones el
+generador **falla cerrado**, tira error en lugar de devolver una carrera distinta.
 
 ## Contribuir
 

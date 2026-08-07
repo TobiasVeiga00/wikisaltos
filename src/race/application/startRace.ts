@@ -1,5 +1,4 @@
-import type { ArticleContent } from '../domain/Article'
-import type { ArticleReader } from '../domain/ports/ArticleReader'
+import type { ArticleContent, ArticleReader } from '../domain/ports/ArticleReader'
 import type { RaceGenerator } from '../domain/ports/RaceGenerator'
 import { createRace, type Race } from '../domain/Race'
 
@@ -20,10 +19,11 @@ export async function startRace(
   jumps: number,
   limitMs: number,
   clock: () => number,
+  dayId: string | null,
   signal?: AbortSignal,
 ): Promise<StartedRace> {
-  const pair = await generator.buildRacePair(jumps, signal)
+  const pair = await generator.buildRacePair(jumps, dayId, signal)
   const article = await reader.fetchArticle(pair.origin.title, signal)
-  const race = createRace(pair.origin, pair.target, pair.walk, limitMs, clock())
+  const race = createRace(pair.origin, pair.target, pair.walk, limitMs, clock(), dayId)
   return { race, article }
 }

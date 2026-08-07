@@ -1,16 +1,14 @@
 /**
  * @vitest-environment jsdom
  *
- * Esta función es la única frontera entre el jugador y HTML de terceros: su
- * resultado va directo a dangerouslySetInnerHTML y React no lo vuelve a revisar.
+ * Esta función es la única frontera entre el jugador y HTML de terceros: nada
+ * río abajo vuelve a revisar lo que devuelve.
  */
 import { describe, expect, it } from 'vitest'
-import { sanitizeArticleHtml } from '../../src/race/infrastructure/wikipedia/sanitizeArticleHtml'
+import { sanitizeArticle } from '../../src/race/infrastructure/wikipedia/sanitizeArticle'
 
-const parse = (html: string) => {
-  const doc = new DOMParser().parseFromString(sanitizeArticleHtml(html), 'text/html')
-  return doc.body
-}
+/** Devuelve un elemento ya listo para insertar, así que se inspecciona directo. */
+const parse = (html: string) => sanitizeArticle(html)
 
 describe('elementos peligrosos', () => {
   it.each([

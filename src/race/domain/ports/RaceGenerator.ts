@@ -12,6 +12,13 @@ export interface RacePair {
 }
 
 export interface RaceGenerator {
-  /** Builds a solvable pair by walking `jumps` real links away from a seed article. */
-  buildRacePair(jumps: number, signal?: AbortSignal): Promise<RacePair>
+  /**
+   * Builds a solvable pair by walking `jumps` real links away from a seed
+   * article.
+   *
+   * A non-null `seed` makes the result deterministic: the same seed yields the
+   * same race for everybody, which is what a daily challenge needs. `null` asks
+   * for a fresh random one.
+   */
+  buildRacePair(jumps: number, seed: string | null, signal?: AbortSignal): Promise<RacePair>
 }

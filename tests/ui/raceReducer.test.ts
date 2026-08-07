@@ -1,5 +1,7 @@
+/** @vitest-environment jsdom -- el cuerpo del artículo es un elemento del DOM. */
 import { describe, expect, it } from 'vitest'
-import type { ArticleContent, ArticleSummary } from '../../src/race/domain/Article'
+import type { ArticleSummary } from '../../src/race/domain/Article'
+import type { ArticleContent } from '../../src/race/domain/ports/ArticleReader'
 import { createRace, finish, visit, type Race } from '../../src/race/domain/Race'
 import {
   INITIAL_RACE_STATE,
@@ -15,7 +17,11 @@ const TARGET: ArticleSummary = {
   thumbnailUrl: null,
 }
 
-const article = (title: string): ArticleContent => ({ title, html: `<p>${title}</p>` })
+const article = (title: string): ArticleContent => {
+  const body = document.createElement('div')
+  body.textContent = title
+  return { title, body }
+}
 const newRace = (startedAt = 1_000): Race =>
   createRace({ title: 'Bolivia' }, TARGET, ['Bolivia', 'Sucre', 'La Paz'], 300_000, startedAt)
 

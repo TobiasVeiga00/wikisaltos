@@ -1,5 +1,6 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import { RACE_JUMPS, RACE_LIMIT_MS, wikipediaPorts } from '../../composition/container'
+import { dayIdAt } from '../../domain/DailyChallenge'
 import { elapsedMs, jumps as countJumps } from '../../domain/Race'
 import { TimeBar } from '../components/molecules/TimeBar'
 import { ArticleViewer } from '../components/organisms/ArticleViewer'
@@ -10,6 +11,15 @@ import { useCountdown } from '../hooks/useCountdown'
 import { useRace } from '../hooks/useRace'
 
 const OPTIONS = { jumps: RACE_JUMPS, limitMs: RACE_LIMIT_MS }
+
+/**
+ * The calendar is an external, mutable source, and this is the hook React
+ * provides for reading one. There is nothing to subscribe to: the value changes
+ * once a day, and the snapshot is a string, so React compares it by value and
+ * only re-renders on the day it actually changes.
+ */
+const noSubscription = () => () => undefined
+const readToday = () => dayIdAt(Date.now())
 
 export function RaceContainer() {
   const { state, start, navigate, giveUp, expire, goHome } = useRace(wikipediaPorts, OPTIONS)
@@ -26,6 +36,16 @@ export function RaceContainer() {
     [navigate],
   )
 
+  const today = useSyncExternalStore(noSubscription, readToday)
+
+  const startDaily = useCallback(() => {
+    void start(readToday())
+  }, [start])
+
+  const startRandom = useCallback(() => {
+    void start(null)
+  }, [start])
+
   useEffect(() => {
     if (phase === 'racing' && remaining === 0) expire()
   }, [phase, remaining, expire])
@@ -40,7 +60,9 @@ export function RaceContainer() {
         jumps={OPTIONS.jumps}
         limitMs={OPTIONS.limitMs}
         streak={streak.count}
-        onStart={() => void start()}
+        dayId={today}
+        onStartDaily={startDaily}
+        onStartRandom={startRandom}
       />
     )
   }
@@ -55,6 +77,7 @@ export function RaceContainer() {
         jumps={countJumps(race)}
         remainingMs={remaining}
         streak={streak.count}
+        dayId={race.dayId}
         onGiveUp={giveUp}
       />
 
@@ -65,14 +88,13 @@ export function RaceContainer() {
       {race.outcome !== null && (
         <div className="race__result-backdrop">
           <ResultPanel
-            outcome={race.outcome}
-            playerPath={race.path}
+            race={race}
             bestPath={bestPath}
             resolvingBestPath={resolvingBestPath}
             elapsedMs={elapsedMs(race)}
             streak={streak}
             preparingNext={phase === 'preparing'}
-            onPlayAgain={() => void start()}
+            onPlayAgain={startRandom}
             onGoHome={goHome}
           />
         </div>

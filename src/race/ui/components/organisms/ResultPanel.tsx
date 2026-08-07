@@ -1,6 +1,9 @@
+import { useState } from 'react'
 import { formatElapsed } from '../../../../shared/time'
 import { sameTitle } from '../../../../shared/titles'
-import type { RaceOutcome } from '../../../domain/Race'
+import { formatDayId } from '../../../domain/DailyChallenge'
+import { jumps as countJumps, type Race, type RaceOutcome } from '../../../domain/Race'
+import { shareResult } from '../../../domain/ShareResult'
 import type { Streak } from '../../../domain/Streak'
 import { Button } from '../atoms/Button'
 import { Spinner } from '../atoms/Spinner'
@@ -11,6 +14,8 @@ const HEADLINE: Record<RaceOutcome, string> = {
   surrendered: 'Abandonaste',
   timeout: 'Se acabó el tiempo',
 }
+
+const COPIED_MS = 2000
 
 const jumpsLabel = (count: number) => `${count} ${count === 1 ? 'salto' : 'saltos'}`
 
@@ -26,8 +31,7 @@ function verdict(outcome: RaceOutcome, playerJumps: number, bestJumps: number): 
 }
 
 interface ResultPanelProps {
-  readonly outcome: RaceOutcome
-  readonly playerPath: readonly string[]
+  readonly race: Race
   readonly bestPath: readonly string[] | null
   readonly resolvingBestPath: boolean
   readonly elapsedMs: number
@@ -38,8 +42,7 @@ interface ResultPanelProps {
 }
 
 export function ResultPanel({
-  outcome,
-  playerPath,
+  race,
   bestPath,
   resolvingBestPath,
   elapsedMs,
@@ -48,7 +51,12 @@ export function ResultPanel({
   onPlayAgain,
   onGoHome,
 }: ResultPanelProps) {
-  const playerJumps = Math.max(0, playerPath.length - 1)
+  const [copied, setCopied] = useState(false)
+  const outcome = race.outcome
+  if (outcome === null) return null
+
+  const playerPath = race.path
+  const playerJumps = countJumps(race)
   const bestJumps = bestPath === null ? null : Math.max(0, bestPath.length - 1)
 
   // Several routes can be equally short. Showing a different one under the
@@ -58,9 +66,21 @@ export function ResultPanel({
   const alternative = bestPath !== null && !identical && bestJumps === playerJumps
   const bestHeading = alternative ? 'Otro camino igual de corto' : 'El camino más corto'
 
+  const copy = () => {
+    void navigator.clipboard.writeText(shareResult(race, bestJumps)).then(() => {
+      setCopied(true)
+      window.setTimeout(() => {
+        setCopied(false)
+      }, COPIED_MS)
+    })
+  }
+
   return (
     <section className="result">
       <header className="result__head">
+        {race.dayId !== null && (
+          <p className="result__day">Desafío del {formatDayId(race.dayId)}</p>
+        )}
         <h2 className="result__headline">{HEADLINE[outcome]}</h2>
         {bestJumps !== null && (
           <p className="result__verdict">{verdict(outcome, playerJumps, bestJumps)}</p>
@@ -113,6 +133,9 @@ export function ResultPanel({
       <div className="result__actions">
         <Button onClick={onPlayAgain} disabled={preparingNext}>
           {preparingNext ? 'Armando la carrera…' : 'Otra carrera'}
+        </Button>
+        <Button variant="ghost" onClick={copy} disabled={bestPath === null}>
+          {copied ? 'Copiado' : 'Copiar resultado'}
         </Button>
         <Button variant="ghost" onClick={onGoHome} disabled={preparingNext}>
           Volver al inicio

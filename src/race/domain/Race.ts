@@ -18,6 +18,8 @@ export interface Race {
   readonly limitMs: number
   readonly outcome: RaceOutcome | null
   readonly finishedAt: number | null
+  /** The day this challenge belongs to, or null for a one-off random race. */
+  readonly dayId: string | null
 }
 
 export function createRace(
@@ -26,6 +28,7 @@ export function createRace(
   knownPath: readonly string[],
   limitMs: number,
   now: number,
+  dayId: string | null = null,
 ): Race {
   return {
     origin,
@@ -36,6 +39,7 @@ export function createRace(
     limitMs,
     outcome: null,
     finishedAt: null,
+    dayId,
   }
 }
 

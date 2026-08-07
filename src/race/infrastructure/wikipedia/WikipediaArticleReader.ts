@@ -1,7 +1,6 @@
 import { normalizeTitle } from '../../../shared/titles'
-import type { ArticleContent } from '../../domain/Article'
-import type { ArticleReader } from '../../domain/ports/ArticleReader'
-import { sanitizeArticleHtml } from './sanitizeArticleHtml'
+import type { ArticleContent, ArticleReader } from '../../domain/ports/ArticleReader'
+import { sanitizeArticle } from './sanitizeArticle'
 import type { WikipediaApiClient } from './WikipediaApiClient'
 
 interface ParseResponse {
@@ -22,7 +21,7 @@ export class WikipediaArticleReader implements ArticleReader {
     // that redirects to the target count as a win.
     return {
       title: normalizeTitle(response.parse.title),
-      html: sanitizeArticleHtml(response.parse.text),
+      body: sanitizeArticle(response.parse.text),
     }
   }
 }

@@ -1,6 +1,6 @@
 import { normalizeTitle } from '../../../shared/titles'
 import type { ArticleSummary } from '../../domain/Article'
-import { randomSliceToken } from './linkPaging'
+import { sliceToken } from './linkPaging'
 import type { WikipediaApiClient } from './WikipediaApiClient'
 
 interface LinksResponse {
@@ -46,7 +46,7 @@ export class WikiGraph {
    * starting past where it ended. Two requests, and the second always reaches
    * ground the first could not.
    */
-  async sampleLinks(title: string, signal?: AbortSignal): Promise<string[]> {
+  async sampleLinks(title: string, sliceAt: number, signal?: AbortSignal): Promise<string[]> {
     const query = { action: 'query', prop: 'links', titles: title, plnamespace: 0, pllimit: 'max' }
     const first = await this.client.request<LinksResponse>(query, signal)
     const page = first.query?.pages?.[0]
@@ -57,7 +57,7 @@ export class WikiGraph {
     if (!first.continue || page.pageid === undefined || lastTitle === undefined) return titles
 
     const slice = await this.client.request<LinksResponse>(
-      { ...query, plcontinue: randomSliceToken(page.pageid, lastTitle) },
+      { ...query, plcontinue: sliceToken(page.pageid, lastTitle, sliceAt) },
       signal,
     )
     for (const link of slice.query?.pages?.[0]?.links ?? []) titles.push(normalizeTitle(link.title))

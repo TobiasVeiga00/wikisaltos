@@ -1,4 +1,5 @@
 import { formatClock } from '../../../../shared/time'
+import { formatDayId } from '../../../domain/DailyChallenge'
 import { Button } from '../atoms/Button'
 import { Spinner } from '../atoms/Spinner'
 
@@ -8,7 +9,10 @@ interface StartScreenProps {
   readonly jumps: number
   readonly limitMs: number
   readonly streak: number
-  readonly onStart: () => void
+  /** Null until the clock has been read after mounting. */
+  readonly dayId: string | null
+  readonly onStartDaily: () => void
+  readonly onStartRandom: () => void
 }
 
 export function StartScreen({
@@ -17,7 +21,9 @@ export function StartScreen({
   jumps,
   limitMs,
   streak,
-  onStart,
+  dayId,
+  onStartDaily,
+  onStartRandom,
 }: StartScreenProps) {
   return (
     <main className="start">
@@ -50,7 +56,20 @@ export function StartScreen({
       {preparing ? (
         <Spinner label="Armando la carrera" />
       ) : (
-        <Button onClick={onStart}>Empezar</Button>
+        <div className="start__actions">
+          <Button onClick={onStartDaily}>
+            {dayId === null ? 'Desafío del día' : `Desafío del ${formatDayId(dayId)}`}
+          </Button>
+          <Button variant="ghost" onClick={onStartRandom}>
+            Carrera al azar
+          </Button>
+        </div>
+      )}
+
+      {!preparing && (
+        <p className="start__note">
+          El desafío del día es el mismo para todo el mundo. Jugalo y comparás con quien quieras.
+        </p>
       )}
     </main>
   )

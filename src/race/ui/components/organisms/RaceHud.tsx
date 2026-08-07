@@ -14,10 +14,19 @@ interface RaceHudProps {
   readonly jumps: number
   readonly remainingMs: number
   readonly streak: number
+  readonly dayId: string | null
   readonly onGiveUp: () => void
 }
 
-export function RaceHud({ target, path, jumps, remainingMs, streak, onGiveUp }: RaceHudProps) {
+export function RaceHud({
+  target,
+  path,
+  jumps,
+  remainingMs,
+  streak,
+  dayId,
+  onGiveUp,
+}: RaceHudProps) {
   const trailRef = useRef<HTMLElement>(null)
 
   // The trail scrolls sideways once it outgrows the screen, and new steps are
@@ -48,7 +57,7 @@ export function RaceHud({ target, path, jumps, remainingMs, streak, onGiveUp }: 
       </div>
 
       <nav className="trailbar" aria-label="Recorrido" ref={trailRef}>
-        <span className="label">Recorrido</span>
+        <span className="label">{dayId === null ? 'Recorrido' : 'Desafío del día'}</span>
         <PathTrail titles={path} />
       </nav>
     </>
