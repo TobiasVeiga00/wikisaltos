@@ -196,16 +196,16 @@ body {
   color: var(--ink-soft);
 }
 
-/* Cuatro números en una fila de hairlines, sin cajas: la misma regla que el
-   resto de la pantalla de inicio. */
+/* Cuatro números en una fila, sin cajas: la misma regla que el resto de la
+   pantalla de inicio. Sin borde propio a propósito — el último ítem de la lista
+   de reglas ya cierra con una línea, y agregar otra dibuja dos separadas por el
+   gap. */
 .stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 0.25rem 1.25rem;
-  margin: -0.7rem 0 0;
+  margin: 0;
   width: 100%;
-  padding-top: 0.9rem;
-  border-top: 1px solid var(--rule);
 }
 
 .stats__item {
