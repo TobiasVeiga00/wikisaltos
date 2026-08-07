@@ -1,14 +1,25 @@
-import { formatClock } from '../../../../shared/time'
+import { formatClock, formatElapsed } from '../../../../shared/time'
 import { formatDayId } from '../../../domain/DailyChallenge'
+import type { DailyResult, PlayerRecord } from '../../../domain/PlayerRecord'
+import type { RaceOutcome } from '../../../domain/Race'
 import { Button } from '../atoms/Button'
 import { Spinner } from '../atoms/Spinner'
+import { PlayerStats } from '../molecules/PlayerStats'
+
+const DAILY_HEADLINE: Record<RaceOutcome, string> = {
+  won: 'Lo lograste',
+  surrendered: 'Lo abandonaste',
+  timeout: 'Se te acabó el tiempo',
+}
 
 interface StartScreenProps {
   readonly preparing: boolean
   readonly error: string | null
   readonly jumps: number
   readonly limitMs: number
-  readonly streak: number
+  readonly record: PlayerRecord
+  /** Today's result if it was already played. One attempt per day, and this is the proof. */
+  readonly dailyResult: DailyResult | null
   /** Null until the clock has been read after mounting. */
   readonly dayId: string | null
   readonly onStartDaily: () => void
@@ -20,7 +31,8 @@ export function StartScreen({
   error,
   jumps,
   limitMs,
-  streak,
+  record,
+  dailyResult,
   dayId,
   onStartDaily,
   onStartRandom,
@@ -45,11 +57,9 @@ export function StartScreen({
         <li>Al terminar ves tu recorrido y el camino más corto que existía.</li>
       </ul>
 
-      {streak > 0 && (
-        <p className="start__streak">
-          Venís con <strong>{streak}</strong> {streak === 1 ? 'ganada' : 'ganadas'} al hilo.
-        </p>
-      )}
+      <PlayerStats record={record} />
+
+      {dailyResult !== null && <DailyCard result={dailyResult} />}
 
       {error !== null && <p className="start__error">{error}</p>}
 
@@ -57,20 +67,47 @@ export function StartScreen({
         <Spinner label="Armando la carrera" />
       ) : (
         <div className="start__actions">
-          <Button onClick={onStartDaily}>
-            {dayId === null ? 'Desafío del día' : `Desafío del ${formatDayId(dayId)}`}
-          </Button>
-          <Button variant="ghost" onClick={onStartRandom}>
+          {dailyResult === null && (
+            <Button onClick={onStartDaily}>
+              {dayId === null ? 'Desafío del día' : `Desafío del ${formatDayId(dayId)}`}
+            </Button>
+          )}
+          <Button variant={dailyResult === null ? 'ghost' : 'primary'} onClick={onStartRandom}>
             Carrera al azar
           </Button>
         </div>
       )}
 
-      {!preparing && (
+      {!preparing && dailyResult === null && (
         <p className="start__note">
-          El desafío del día es el mismo para todo el mundo. Jugalo y comparás con quien quieras.
+          El desafío del día es el mismo para todo el mundo, y se juega una sola vez.
         </p>
       )}
     </main>
+  )
+}
+
+function DailyCard({ result }: { readonly result: DailyResult }) {
+  const jumps = `${String(result.jumps)} ${result.jumps === 1 ? 'salto' : 'saltos'}`
+
+  return (
+    <section className="daily-card">
+      <p className="daily-card__day">Desafío del {formatDayId(result.dayId)}</p>
+      <p className="daily-card__headline">{DAILY_HEADLINE[result.outcome]}</p>
+      <p className="daily-card__route">
+        {result.origin} <span aria-hidden="true">→</span> {result.target}
+      </p>
+      {result.outcome === 'won' && (
+        <p className="daily-card__detail">
+          {jumps} en {formatElapsed(result.elapsedMs)}
+          {result.bestJumps !== null &&
+            (result.jumps === result.bestJumps
+              ? ', el mínimo posible'
+              : `, contra un mínimo de ${String(result.bestJumps)}`)}
+          .
+        </p>
+      )}
+      <p className="daily-card__detail daily-card__detail--muted">Mañana hay uno nuevo.</p>
+    </section>
   )
 }

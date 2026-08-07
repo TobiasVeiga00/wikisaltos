@@ -4,7 +4,6 @@ import { sameTitle } from '../../../../shared/titles'
 import { formatDayId } from '../../../domain/DailyChallenge'
 import { jumps as countJumps, type Race, type RaceOutcome } from '../../../domain/Race'
 import { shareResult } from '../../../domain/ShareResult'
-import type { Streak } from '../../../domain/Streak'
 import { Button } from '../atoms/Button'
 import { Spinner } from '../atoms/Spinner'
 import { RouteList } from '../molecules/RouteList'
@@ -35,7 +34,10 @@ interface ResultPanelProps {
   readonly bestPath: readonly string[] | null
   readonly resolvingBestPath: boolean
   readonly elapsedMs: number
-  readonly streak: Streak
+  readonly streak: number
+  readonly bestStreak: number
+  /** How long the streak this race just ended was, if it ended one. */
+  readonly brokenStreak: number | null
   readonly preparingNext: boolean
   readonly onPlayAgain: () => void
   readonly onGoHome: () => void
@@ -47,6 +49,8 @@ export function ResultPanel({
   resolvingBestPath,
   elapsedMs,
   streak,
+  bestStreak,
+  brokenStreak,
   preparingNext,
   onPlayAgain,
   onGoHome,
@@ -87,14 +91,16 @@ export function ResultPanel({
         )}
 
         {/* Una sola victoria no es una racha, así que el cartel recién habla de dos. */}
-        {streak.count > 1 && (
+        {streak > 1 && (
           <p className="result__streak">
-            Racha de <strong>{streak.count}</strong> seguidas.
+            Racha de <strong>{streak}</strong> seguidas
+            {streak === bestStreak && ', tu mejor marca'}.
           </p>
         )}
-        {streak.brokenAt !== null && streak.brokenAt > 1 && (
+        {brokenStreak !== null && brokenStreak > 1 && (
           <p className="result__streak result__streak--broken">
-            Se cortó una racha de <strong>{streak.brokenAt}</strong>.
+            Se cortó una racha de <strong>{brokenStreak}</strong>. La mejor sigue siendo{' '}
+            <strong>{bestStreak}</strong>.
           </p>
         )}
       </header>

@@ -196,10 +196,78 @@ body {
   color: var(--ink-soft);
 }
 
-.start__streak {
+/* Cuatro números en una fila de hairlines, sin cajas: la misma regla que el
+   resto de la pantalla de inicio. */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.25rem 1.25rem;
+  margin: -0.7rem 0 0;
+  width: 100%;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+}
+
+.stats__item {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.15rem;
+}
+
+.stats__label {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.stats__value {
   margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* El resultado del día ya jugado. Ocupa el lugar del botón que reemplaza, así
+   que se lee como un estado y no como un aviso. */
+.daily-card {
+  width: 100%;
+  padding: 0.9rem 1.1rem;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--signal);
+  border-radius: 2px;
+}
+
+.daily-card__day {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.daily-card__headline {
+  margin: 0.2rem 0 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.daily-card__route {
+  margin: 0.35rem 0 0;
   font-size: 0.95rem;
-  color: var(--signal);
+  color: var(--ink-soft);
+}
+
+.daily-card__detail {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+.daily-card__detail--muted {
+  color: var(--muted);
 }
 
 .start__actions {
@@ -810,5 +878,11 @@ body {
   .paper__body .infobox_v2 {
     float: none;
     margin: 0 0 1.25rem;
+  }
+
+  /* "Mejor racha" no entra en un cuarto de pantalla de teléfono. */
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.9rem 1.25rem;
   }
 }

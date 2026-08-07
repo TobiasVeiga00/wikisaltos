@@ -2,17 +2,25 @@ import { useCallback, useEffect, useReducer, useRef } from 'react'
 import { navigateTo } from '../../application/navigateTo'
 import { resolveBestPath } from '../../application/resolveBestPath'
 import { startRace } from '../../application/startRace'
+import {
+  NEW_PLAYER,
+  recordDailyBest,
+  recordRace,
+  streakBrokenBy,
+  type PlayerRecord,
+} from '../../domain/PlayerRecord'
 import type { ArticleContent, ArticleReader } from '../../domain/ports/ArticleReader'
 import type { PathFinder } from '../../domain/ports/PathFinder'
+import type { PlayerStore } from '../../domain/ports/PlayerStore'
 import type { RaceGenerator } from '../../domain/ports/RaceGenerator'
 import { finish, type Race, type RaceOutcome } from '../../domain/Race'
-import { afterRace, NO_STREAK, type Streak } from '../../domain/Streak'
 
 /** What the hook needs from the outside world, named by the consumer that needs it. */
 export interface RacePorts {
   readonly generator: RaceGenerator
   readonly reader: ArticleReader
   readonly finder: PathFinder
+  readonly records: PlayerStore
 }
 
 type RacePhase = 'idle' | 'preparing' | 'racing' | 'finished'
@@ -25,7 +33,10 @@ export interface RaceState {
   readonly error: string | null
   readonly bestPath: readonly string[] | null
   readonly resolvingBestPath: boolean
-  readonly streak: Streak
+  /** Everything that outlives the session: streaks, totals, today's result. */
+  readonly record: PlayerRecord
+  /** How long the streak this race just ended was. Worth saying once, then gone. */
+  readonly brokenStreak: number | null
 }
 
 export type RaceAction =
@@ -47,8 +58,12 @@ export const INITIAL_RACE_STATE: RaceState = {
   error: null,
   bestPath: null,
   resolvingBestPath: false,
-  streak: NO_STREAK,
+  record: NEW_PLAYER,
+  brokenStreak: null,
 }
+
+/** What survives leaving a race behind, whether for the menu or for the next one. */
+const kept = (state: RaceState) => ({ record: state.record, brokenStreak: null })
 
 export function raceReducer(state: RaceState, action: RaceAction): RaceState {
   switch (action.type) {
@@ -59,24 +74,24 @@ export function raceReducer(state: RaceState, action: RaceAction): RaceState {
     case 'STARTED':
       return {
         ...INITIAL_RACE_STATE,
+        ...kept(state),
         phase: 'racing',
         race: action.race,
         article: action.article,
-        streak: state.streak,
       }
     case 'LOADING_ARTICLE':
       return { ...state, loadingArticle: true, error: null }
-    // The streak moves on the two actions that can end a race, and only there,
+    // The record moves on the two actions that can end a race, and only there,
     // so it is counted exactly once no matter how the race finished.
     case 'MOVED':
       return {
         ...state,
+        ...applyOutcome(state, action.race),
         phase: action.race.outcome === null ? 'racing' : 'finished',
         race: action.race,
         article: action.article,
         loadingArticle: false,
         error: null,
-        streak: applyOutcome(state, action.race),
       }
     case 'FAILED':
       return {
@@ -88,30 +103,44 @@ export function raceReducer(state: RaceState, action: RaceAction): RaceState {
     case 'FINISHED':
       return {
         ...state,
+        ...applyOutcome(state, action.race),
         phase: 'finished',
         race: action.race,
         loadingArticle: false,
-        streak: applyOutcome(state, action.race),
       }
     case 'RESOLVING_BEST_PATH':
       return { ...state, resolvingBestPath: true }
+    // The shortest path lands a moment after the race ended, so today's result
+    // gets its minimum here rather than being written incomplete forever.
     case 'BEST_PATH':
-      return { ...state, bestPath: action.path, resolvingBestPath: false }
-    // Going back to the menu is navigation, not a result, so the streak survives it.
+      return {
+        ...state,
+        bestPath: action.path,
+        resolvingBestPath: false,
+        record:
+          state.race?.dayId == null
+            ? state.record
+            : recordDailyBest(state.record, state.race.dayId, action.path.length - 1),
+      }
+    // Going back to the menu is navigation, not a result: the record survives it.
     case 'HOME':
-      return { ...INITIAL_RACE_STATE, streak: state.streak }
+      return { ...INITIAL_RACE_STATE, ...kept(state) }
   }
 }
 
 /**
- * A race moves the streak once, when it stops being unfinished. Both actions
+ * A race enters the record once, when it stops being unfinished. Both actions
  * that can end one are allowed to arrive, so the guard lives here rather than
  * trusting every caller to check first.
  */
-function applyOutcome(state: RaceState, race: Race): Streak {
-  if (race.outcome === null) return state.streak
-  if (state.race !== null && state.race.outcome !== null) return state.streak
-  return afterRace(state.streak, race.outcome)
+function applyOutcome(state: RaceState, race: Race): Pick<RaceState, 'record' | 'brokenStreak'> {
+  const unchanged = { record: state.record, brokenStreak: state.brokenStreak }
+  if (race.outcome === null) return unchanged
+  if (state.race !== null && state.race.outcome !== null) return unchanged
+  return {
+    record: recordRace(state.record, race, null),
+    brokenStreak: streakBrokenBy(state.record, race.outcome),
+  }
 }
 
 interface UseRaceOptions {
@@ -119,8 +148,10 @@ interface UseRaceOptions {
   readonly limitMs: number
 }
 
+const restore = (store: PlayerStore): RaceState => ({ ...INITIAL_RACE_STATE, record: store.load() })
+
 export function useRace(ports: RacePorts, options: UseRaceOptions) {
-  const [state, dispatch] = useReducer(raceReducer, INITIAL_RACE_STATE)
+  const [state, dispatch] = useReducer(raceReducer, ports.records, restore)
   const abortRef = useRef<AbortController | null>(null)
   /** Guards against a slow response from a race the player already abandoned. */
   const runRef = useRef(0)
@@ -232,6 +263,19 @@ export function useRace(ports: RacePorts, options: UseRaceOptions) {
       dispatch({ type: 'BEST_PATH', path })
     })
   }, [phase, race, bestPath, resolvingBestPath, ports.finder])
+
+  /**
+   * Writing is a side effect, so it happens here and not in the reducer. The ref
+   * starts on the record that was just loaded, which is why a fresh session does
+   * not immediately write back what it only just read.
+   */
+  const savedRef = useRef(state.record)
+  const { record } = state
+  useEffect(() => {
+    if (record === savedRef.current) return
+    savedRef.current = record
+    ports.records.save(record)
+  }, [record, ports.records])
 
   return { state, start, navigate, giveUp, expire, goHome }
 }

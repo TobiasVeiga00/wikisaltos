@@ -1,3 +1,4 @@
+import { LocalStoragePlayerStore } from '../infrastructure/storage/LocalStoragePlayerStore'
 import { WikiGraph } from '../infrastructure/wikipedia/WikiGraph'
 import { WikipediaApiClient } from '../infrastructure/wikipedia/WikipediaApiClient'
 import { WikipediaArticleReader } from '../infrastructure/wikipedia/WikipediaArticleReader'
@@ -17,6 +18,7 @@ export const wikipediaPorts: RacePorts = {
   generator: new WikipediaRaceGenerator(graph),
   reader: new WikipediaArticleReader(client),
   finder: new WikipediaPathFinder(graph),
+  records: new LocalStoragePlayerStore(),
 }
 
 export const RACE_JUMPS = 3

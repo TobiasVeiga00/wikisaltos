@@ -13,7 +13,8 @@ todo en el navegador.
 - Ganar encadena una **racha**. Se corta al abandonar o al quedarte sin tiempo, pero no
   al volver al menú: eso es navegación, no una derrota.
 - Hay un **desafío del día**: la misma carrera para todo el mundo, y un botón para copiar
-  tu resultado y compararlo con quien quieras.
+  tu resultado y compararlo con quien quieras. Se juega **una sola vez por día**.
+- El navegador recuerda tus jugadas, tu racha actual y tu mejor racha histórica.
 
 Se puede jugar entero con el teclado: Tab para moverte entre enlaces, Enter para saltar.
 
@@ -29,7 +30,7 @@ Otros comandos:
 ```bash
 npm run check           # tipos + linter + tests, todo junto
 npm run test:integration # comprueba el desafío diario contra la API real
-npm run test       # 140 tests
+npm run test       # 158 tests
 npm run test:watch # tests en modo continuo
 npm run lint       # ESLint
 npm run format     # Prettier
@@ -98,10 +99,12 @@ Hexagonal, organizada por funcionalidad y no por capa técnica.
 src/race/
   domain/          entidades y reglas — sin React, sin Wikipedia, sin fetch
     Race.ts        la carrera: ganar, perder, el tiempo
-    Streak.ts      la racha de victorias y cómo se corta
-    ports/         tres interfaces chicas, una por responsabilidad
+    PlayerRecord.ts lo que sobrevive a la sesión: racha, totales, el diario
+    ports/         cuatro interfaces chicas, una por responsabilidad
   application/     casos de uso; cada uno depende solo del puerto que usa
   infrastructure/
+    storage/
+      LocalStoragePlayerStore.ts  el registro en el navegador
     wikipedia/
       WikiGraph.ts               consultar el grafo de enlaces
       WikipediaRaceGenerator.ts  política de juego: semillas, caminata, destino
@@ -192,8 +195,8 @@ artículos que el primero no podía alcanzar.
 
 ## El desafío del día
 
-Todos los que juegan un mismo día reciben exactamente la misma carrera, sin backend y sin
-guardar nada: se deriva de la fecha.
+Todos los que juegan un mismo día reciben exactamente la misma carrera, sin backend: se
+deriva de la fecha.
 
 El día se ancla a la hora argentina. No a la de quien juega, porque entonces alguien en
 Madrid tendría el desafío de mañana mientras acá todavía es hoy; y tampoco a UTC, que
@@ -212,6 +215,28 @@ Dos detalles que parecen menores y no lo son: para el desafío del día se desac
 memorias de orígenes y destinos recientes, porque el historial de un jugador no puede
 cambiar la carrera que recibe todo el mundo; y si Wikipedia limita las peticiones el
 generador **falla cerrado**, tira error en lugar de devolver una carrera distinta.
+
+## Qué se guarda, y qué no
+
+Todo vive en `localStorage`, bajo una sola clave. No hay cuentas, no hay servidor y nada
+sale de tu navegador. La contra es real y conviene decirla: el registro está atado a **ese
+navegador y ese dominio**. Cambiar de máquina, o borrar los datos del sitio, lo borra.
+
+Tres decisiones que no son obvias:
+
+- **El resultado del día se escribe una vez y no se pisa.** Si una segunda vuelta pudiera
+  reemplazarlo, el primer intento no significaría nada, y el desafío dejaría de ser un
+  desafío.
+- **Todo lo que se lee se valida.** El archivo es del jugador y lo puede editar; cualquier
+  cosa que no tenga sentido se trata como empezar de cero, no como dato bueno.
+- **Escribir puede fallar.** Safari en incógnito y las cookies bloqueadas tiran excepción.
+  Se ignora en silencio: perder el registro nunca vale una partida terminada.
+
+El formato lleva un campo `version` desde el día uno. En el momento en que algo se escribe
+en la máquina de alguien, es un formato que hay que poder volver a leer para siempre.
+
+Es honor system: nada impide editar los números a mano. Sin backend no hay otra, y para un
+juego de un jugador tampoco hace falta.
 
 ## Contribuir
 

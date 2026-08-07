@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import { RACE_JUMPS, RACE_LIMIT_MS, wikipediaPorts } from '../../composition/container'
 import { dayIdAt } from '../../domain/DailyChallenge'
+import { dailyResultFor } from '../../domain/PlayerRecord'
 import { elapsedMs, jumps as countJumps } from '../../domain/Race'
 import { TimeBar } from '../components/molecules/TimeBar'
 import { ArticleViewer } from '../components/organisms/ArticleViewer'
@@ -23,7 +24,8 @@ const readToday = () => dayIdAt(Date.now())
 
 export function RaceContainer() {
   const { state, start, navigate, giveUp, expire, goHome } = useRace(wikipediaPorts, OPTIONS)
-  const { phase, race, article, loadingArticle, error, bestPath, resolvingBestPath, streak } = state
+  const { phase, race, article, loadingArticle, error, bestPath, resolvingBestPath } = state
+  const { record, brokenStreak } = state
 
   const remaining = useCountdown(race?.startedAt ?? null, OPTIONS.limitMs, race?.finishedAt ?? null)
 
@@ -59,7 +61,8 @@ export function RaceContainer() {
         error={error}
         jumps={OPTIONS.jumps}
         limitMs={OPTIONS.limitMs}
-        streak={streak.count}
+        record={record}
+        dailyResult={dailyResultFor(record, today)}
         dayId={today}
         onStartDaily={startDaily}
         onStartRandom={startRandom}
@@ -76,7 +79,7 @@ export function RaceContainer() {
         path={race.path}
         jumps={countJumps(race)}
         remainingMs={remaining}
-        streak={streak.count}
+        streak={record.streak}
         dayId={race.dayId}
         onGiveUp={giveUp}
       />
@@ -92,7 +95,9 @@ export function RaceContainer() {
             bestPath={bestPath}
             resolvingBestPath={resolvingBestPath}
             elapsedMs={elapsedMs(race)}
-            streak={streak}
+            streak={record.streak}
+            bestStreak={record.bestStreak}
+            brokenStreak={brokenStreak}
             preparingNext={phase === 'preparing'}
             onPlayAgain={startRandom}
             onGoHome={goHome}

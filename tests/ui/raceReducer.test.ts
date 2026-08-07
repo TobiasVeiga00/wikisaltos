@@ -61,18 +61,20 @@ describe('preparar la carrera siguiente', () => {
   })
 })
 
-describe('racha', () => {
-  it('avanza al ganar', () => {
-    expect(wonOnce().streak.count).toBe(1)
+describe('el registro del jugador', () => {
+  it('avanza la racha al ganar', () => {
+    expect(wonOnce().record.streak).toBe(1)
   })
 
-  it('se corta al abandonar', () => {
+  it('se corta al abandonar, y avisa de qué tamaño era', () => {
     const race = newRace()
     const state = reduce(
       { ...wonOnce(), race, phase: 'racing' },
       { type: 'FINISHED', race: finish(race, 'surrendered', 3_000) },
     )
-    expect(state.streak).toEqual({ count: 0, brokenAt: 1 })
+    expect(state.record.streak).toBe(0)
+    expect(state.record.bestStreak).toBe(1)
+    expect(state.brokenStreak).toBe(1)
   })
 
   it('sobrevive a empezar una carrera nueva', () => {
@@ -81,7 +83,9 @@ describe('racha', () => {
       { type: 'PREPARING' },
       { type: 'STARTED', race: newRace(9_000), article: article('Otro') },
     )
-    expect(state.streak.count).toBe(1)
+    expect(state.record.streak).toBe(1)
+    // El aviso de racha cortada pertenece a la carrera anterior.
+    expect(state.brokenStreak).toBeNull()
   })
 
   // Volver al menú es navegación, no una derrota.
@@ -89,7 +93,7 @@ describe('racha', () => {
     const state = reduce(wonOnce(), { type: 'HOME' })
     expect(state.phase).toBe('idle')
     expect(state.race).toBeNull()
-    expect(state.streak.count).toBe(1)
+    expect(state.record.streak).toBe(1)
   })
 
   it('no cuenta dos veces la misma carrera', () => {
@@ -101,7 +105,8 @@ describe('racha', () => {
       // Un intento tardío de terminar una carrera ya ganada no debe sumar.
       { type: 'FINISHED', race: won },
     )
-    expect(state.streak.count).toBe(1)
+    expect(state.record.streak).toBe(1)
+    expect(state.record.played).toBe(1)
   })
 
   it('no se mueve mientras la carrera sigue en juego', () => {
@@ -112,7 +117,34 @@ describe('racha', () => {
       article: article('Sucre'),
     })
     expect(state.phase).toBe('racing')
-    expect(state.streak.count).toBe(0)
+    expect(state.record.played).toBe(0)
+  })
+})
+
+describe('el mínimo del desafío diario', () => {
+  const daily = (): Race =>
+    createRace(
+      { title: 'Bolivia' },
+      TARGET,
+      ['Bolivia', 'Sucre', 'La Paz'],
+      300_000,
+      1_000,
+      '2026-08-07',
+    )
+
+  it('se completa cuando llega el camino más corto', () => {
+    const race = daily()
+    const state = reduce(
+      reduce(INITIAL_RACE_STATE, { type: 'STARTED', race, article: article('Bolivia') }),
+      { type: 'MOVED', race: visit(race, 'La Paz', 2_000), article: article('La Paz') },
+      { type: 'BEST_PATH', path: ['Bolivia', 'La Paz'] },
+    )
+    expect(state.record.daily?.bestJumps).toBe(1)
+  })
+
+  it('una carrera al azar no toca el resultado del día', () => {
+    const state = reduce(wonOnce(), { type: 'BEST_PATH', path: ['Bolivia', 'La Paz'] })
+    expect(state.record.daily).toBeNull()
   })
 })
 
