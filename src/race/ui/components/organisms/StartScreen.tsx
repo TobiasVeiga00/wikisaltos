@@ -1,9 +1,10 @@
 import { formatClock, formatElapsed } from '../../../../shared/time'
 import { formatDayId } from '../../../domain/DailyChallenge'
 import type { DailyResult, PlayerRecord } from '../../../domain/PlayerRecord'
+import type { RaceProgress } from '../../../domain/ports/RaceGenerator'
 import type { RaceOutcome } from '../../../domain/Race'
 import { Button } from '../atoms/Button'
-import { Spinner } from '../atoms/Spinner'
+import { BuildProgress } from '../molecules/BuildProgress'
 import { PlayerStats } from '../molecules/PlayerStats'
 
 const DAILY_HEADLINE: Record<RaceOutcome, string> = {
@@ -14,6 +15,7 @@ const DAILY_HEADLINE: Record<RaceOutcome, string> = {
 
 interface StartScreenProps {
   readonly preparing: boolean
+  readonly progress: RaceProgress | null
   readonly error: string | null
   readonly jumps: number
   readonly limitMs: number
@@ -28,6 +30,7 @@ interface StartScreenProps {
 
 export function StartScreen({
   preparing,
+  progress,
   error,
   jumps,
   limitMs,
@@ -64,7 +67,7 @@ export function StartScreen({
       {error !== null && <p className="start__error">{error}</p>}
 
       {preparing ? (
-        <Spinner label="Armando la carrera" />
+        <BuildProgress progress={progress} />
       ) : (
         <div className="start__actions">
           {dailyResult === null && (

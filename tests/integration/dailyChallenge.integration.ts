@@ -23,8 +23,8 @@ describe('desafío diario contra la API real', () => {
     async () => {
       const nuevo = () => new WikipediaRaceGenerator(new WikiGraph(new WikipediaApiClient()))
 
-      const a = await nuevo().buildRacePair(3, '2026-08-06')
-      const b = await nuevo().buildRacePair(3, '2026-08-06')
+      const a = await nuevo().buildRacePair({ jumps: 3, seed: '2026-08-06', from: null })
+      const b = await nuevo().buildRacePair({ jumps: 3, seed: '2026-08-06', from: null })
 
       console.log('  A:', a.walk.join(' > '))
       console.log('  B:', b.walk.join(' > '))
@@ -37,8 +37,8 @@ describe('desafío diario contra la API real', () => {
 
   it('otro día da otra carrera', { timeout: 120_000 }, async () => {
     const generador = new WikipediaRaceGenerator(new WikiGraph(new WikipediaApiClient()))
-    const hoy = await generador.buildRacePair(3, '2026-08-06')
-    const mañana = await generador.buildRacePair(3, '2026-08-07')
+    const hoy = await generador.buildRacePair({ jumps: 3, seed: '2026-08-06', from: null })
+    const mañana = await generador.buildRacePair({ jumps: 3, seed: '2026-08-07', from: null })
     console.log('  06:', hoy.walk.join(' > '))
     console.log('  07:', mañana.walk.join(' > '))
     expect(mañana.target.title).not.toBe(hoy.target.title)

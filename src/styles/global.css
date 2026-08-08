@@ -270,6 +270,51 @@ body {
   color: var(--muted);
 }
 
+/* La barra no se anima con transiciones largas: cada avance es un viaje a
+   Wikipedia que ya terminó, y suavizarlo inventaría movimiento donde no lo hay. */
+.build {
+  width: 100%;
+  max-width: 26rem;
+}
+
+.build__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.build__label {
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+.build__percent {
+  font-size: 1.1rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--signal);
+}
+
+.build__track {
+  height: 3px;
+  background: var(--rule);
+  overflow: hidden;
+}
+
+.build__fill {
+  height: 100%;
+  background: var(--signal);
+  transition: width 180ms linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .build__fill {
+    transition: none;
+  }
+}
+
 .start__actions {
   display: flex;
   flex-wrap: wrap;

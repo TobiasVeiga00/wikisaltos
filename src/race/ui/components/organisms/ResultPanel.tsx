@@ -3,8 +3,10 @@ import { formatElapsed } from '../../../../shared/time'
 import { sameTitle } from '../../../../shared/titles'
 import { formatDayId } from '../../../domain/DailyChallenge'
 import { jumps as countJumps, type Race, type RaceOutcome } from '../../../domain/Race'
+import type { RaceProgress } from '../../../domain/ports/RaceGenerator'
 import { shareResult } from '../../../domain/ShareResult'
 import { Button } from '../atoms/Button'
+import { BuildProgress } from '../molecules/BuildProgress'
 import { Spinner } from '../atoms/Spinner'
 import { RouteList } from '../molecules/RouteList'
 
@@ -39,6 +41,9 @@ interface ResultPanelProps {
   /** How long the streak this race just ended was, if it ended one. */
   readonly brokenStreak: number | null
   readonly preparingNext: boolean
+  readonly progress: RaceProgress | null
+  /** Chains the next race off this destination. Only offered after a win. */
+  readonly onContinue: () => void
   readonly onPlayAgain: () => void
   readonly onGoHome: () => void
 }
@@ -52,6 +57,8 @@ export function ResultPanel({
   bestStreak,
   brokenStreak,
   preparingNext,
+  progress,
+  onContinue,
   onPlayAgain,
   onGoHome,
 }: ResultPanelProps) {
@@ -136,17 +143,26 @@ export function ResultPanel({
         </section>
       )}
 
-      <div className="result__actions">
-        <Button onClick={onPlayAgain} disabled={preparingNext}>
-          {preparingNext ? 'Armando la carrera…' : 'Otra carrera'}
-        </Button>
-        <Button variant="ghost" onClick={copy} disabled={bestPath === null}>
-          {copied ? 'Copiado' : 'Copiar resultado'}
-        </Button>
-        <Button variant="ghost" onClick={onGoHome} disabled={preparingNext}>
-          Volver al inicio
-        </Button>
-      </div>
+      {preparingNext ? (
+        <BuildProgress progress={progress} />
+      ) : (
+        <div className="result__actions">
+          {/* Ganar deja el destino como punto de partida: la carrera siguiente
+              arranca donde terminó esta. Perder corta la cadena junto con la
+              racha, así que ahí el botón dice otra cosa y hace otra cosa. */}
+          {outcome === 'won' ? (
+            <Button onClick={onContinue}>Seguir desde acá</Button>
+          ) : (
+            <Button onClick={onPlayAgain}>Carrera nueva</Button>
+          )}
+          <Button variant="ghost" onClick={copy} disabled={bestPath === null}>
+            {copied ? 'Copiado' : 'Copiar resultado'}
+          </Button>
+          <Button variant="ghost" onClick={onGoHome}>
+            Volver al inicio
+          </Button>
+        </div>
+      )}
     </section>
   )
 }

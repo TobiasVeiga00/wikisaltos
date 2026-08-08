@@ -12,7 +12,7 @@ import {
 import type { ArticleContent, ArticleReader } from '../../domain/ports/ArticleReader'
 import type { PathFinder } from '../../domain/ports/PathFinder'
 import type { PlayerStore } from '../../domain/ports/PlayerStore'
-import type { RaceGenerator } from '../../domain/ports/RaceGenerator'
+import type { RaceGenerator, RaceProgress, RaceRequest } from '../../domain/ports/RaceGenerator'
 import { finish, type Race, type RaceOutcome } from '../../domain/Race'
 
 /** What the hook needs from the outside world, named by the consumer that needs it. */
@@ -37,10 +37,13 @@ export interface RaceState {
   readonly record: PlayerRecord
   /** How long the streak this race just ended was. Worth saying once, then gone. */
   readonly brokenStreak: number | null
+  /** How far along the race being built is, or null when nothing is being built. */
+  readonly progress: RaceProgress | null
 }
 
 export type RaceAction =
   | { type: 'PREPARING' }
+  | { type: 'PROGRESS'; progress: RaceProgress }
   | { type: 'STARTED'; race: Race; article: ArticleContent }
   | { type: 'MOVED'; race: Race; article: ArticleContent }
   | { type: 'LOADING_ARTICLE' }
@@ -60,17 +63,20 @@ export const INITIAL_RACE_STATE: RaceState = {
   resolvingBestPath: false,
   record: NEW_PLAYER,
   brokenStreak: null,
+  progress: null,
 }
 
 /** What survives leaving a race behind, whether for the menu or for the next one. */
-const kept = (state: RaceState) => ({ record: state.record, brokenStreak: null })
+const kept = (state: RaceState) => ({ record: state.record, brokenStreak: null, progress: null })
 
 export function raceReducer(state: RaceState, action: RaceAction): RaceState {
   switch (action.type) {
     // The previous race stays on screen while the next one is built, so asking
     // for another race never bounces the player back to the start menu.
     case 'PREPARING':
-      return { ...state, phase: 'preparing', error: null }
+      return { ...state, phase: 'preparing', error: null, progress: null }
+    case 'PROGRESS':
+      return { ...state, progress: action.progress }
     case 'STARTED':
       return {
         ...INITIAL_RACE_STATE,
@@ -168,7 +174,7 @@ export function useRace(ports: RacePorts, options: UseRaceOptions) {
   useEffect(() => () => abortRef.current?.abort(), [])
 
   const start = useCallback(
-    async (dayId: string | null = null) => {
+    async (request: Omit<RaceRequest, 'jumps'>) => {
       abortRef.current?.abort()
       const controller = new AbortController()
       abortRef.current = controller
@@ -181,11 +187,15 @@ export function useRace(ports: RacePorts, options: UseRaceOptions) {
         const { race, article } = await startRace(
           ports.generator,
           ports.reader,
-          options.jumps,
+          { ...request, jumps: options.jumps },
           options.limitMs,
           Date.now,
-          dayId,
-          signal,
+          {
+            signal,
+            onProgress: (progress) => {
+              if (run === runRef.current) dispatch({ type: 'PROGRESS', progress })
+            },
+          },
         )
         if (run !== runRef.current) return
         dispatch({ type: 'STARTED', race, article })

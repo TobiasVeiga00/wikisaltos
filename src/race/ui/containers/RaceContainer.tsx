@@ -25,7 +25,7 @@ const readToday = () => dayIdAt(Date.now())
 export function RaceContainer() {
   const { state, start, navigate, giveUp, expire, goHome } = useRace(wikipediaPorts, OPTIONS)
   const { phase, race, article, loadingArticle, error, bestPath, resolvingBestPath } = state
-  const { record, brokenStreak } = state
+  const { record, brokenStreak, progress } = state
 
   const remaining = useCountdown(race?.startedAt ?? null, OPTIONS.limitMs, race?.finishedAt ?? null)
 
@@ -41,12 +41,20 @@ export function RaceContainer() {
   const today = useSyncExternalStore(noSubscription, readToday)
 
   const startDaily = useCallback(() => {
-    void start(readToday())
+    void start({ seed: readToday(), from: null })
   }, [start])
 
   const startRandom = useCallback(() => {
-    void start(null)
+    void start({ seed: null, from: null })
   }, [start])
+
+  // El destino recién alcanzado se vuelve el próximo origen. Nunca desde el
+  // diario: esa carrera se deriva de la fecha y tiene que ser la misma para
+  // todos, así que encadenar arranca siempre una carrera libre.
+  const continueFrom = race?.target.title ?? null
+  const startChained = useCallback(() => {
+    void start({ seed: null, from: continueFrom })
+  }, [start, continueFrom])
 
   useEffect(() => {
     if (phase === 'racing' && remaining === 0) expire()
@@ -58,6 +66,7 @@ export function RaceContainer() {
     return (
       <StartScreen
         preparing={phase === 'preparing'}
+        progress={progress}
         error={error}
         jumps={OPTIONS.jumps}
         limitMs={OPTIONS.limitMs}
@@ -99,6 +108,8 @@ export function RaceContainer() {
             bestStreak={record.bestStreak}
             brokenStreak={brokenStreak}
             preparingNext={phase === 'preparing'}
+            progress={progress}
+            onContinue={startChained}
             onPlayAgain={startRandom}
             onGoHome={goHome}
           />

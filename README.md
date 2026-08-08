@@ -12,6 +12,8 @@ todo en el navegador.
 - Cuando termina, el juego te muestra por dónde fuiste y cuál era el camino más corto.
 - Ganar encadena una **racha**. Se corta al abandonar o al quedarte sin tiempo, pero no
   al volver al menú: eso es navegación, no una derrota.
+- Al ganar podés **seguir desde el destino**: la carrera siguiente arranca donde terminó
+  la anterior. Si perdés, la cadena se corta junto con la racha.
 - Hay un **desafío del día**: la misma carrera para todo el mundo, y un botón para copiar
   tu resultado y compararlo con quien quieras. Se juega **una sola vez por día**.
 - El navegador recuerda tus jugadas, tu racha actual y tu mejor racha histórica.
@@ -215,6 +217,33 @@ Dos detalles que parecen menores y no lo son: para el desafío del día se desac
 memorias de orígenes y destinos recientes, porque el historial de un jugador no puede
 cambiar la carrera que recibe todo el mundo; y si Wikipedia limita las peticiones el
 generador **falla cerrado**, tira error en lugar de devolver una carrera distinta.
+
+## Encadenar carreras
+
+Ganar deja el destino como origen de la siguiente. Sale casi gratis porque el generador
+nunca supo de dónde venía su artículo de partida: la caminata, el filtrado y la elección
+del destino trabajan con un título y nada más.
+
+Lo que sí hubo que agregar es un piso. Un destino se elige por **reconocible** — que tenga
+foto y descripción — y eso no dice nada sobre cuántos enlaces **salen** de él. Arrancar una
+carrera en un callejón sin salida es peor que cortar la cadena, así que un origen encadenado
+con menos de 40 enlaces se descarta y se vuelve a una apertura de la lista curada. El
+chequeo es gratis: esos enlaces se piden igual en el primer paso.
+
+El desafío del día nunca encadena. Se deriva de la fecha y tiene que ser el mismo para
+todos; si dependiera de tu carrera anterior dejaría de serlo.
+
+## La barra al armar una carrera
+
+Armar una carrera son entre seis y ocho viajes a Wikipedia, y un spinner no distingue
+"pensando" de "colgado". La barra cuenta **viajes terminados**, nunca tiempo transcurrido.
+
+El detalle que la hace útil está en los reintentos. Cuando el generador cae en un artículo
+flaco lo descarta y prueba otro, y eso puede pasar varias veces seguidas — justo el momento
+en que un porcentaje fijo se quedaría quieto y parecería trabado. Un viaje que nadie
+planeó sube el numerador **y** el denominador a la vez, así que la fracción siempre avanza
+(`done` es menor que `total`, entonces `(d+1)/(t+1)` supera a `d/t`) mientras admite que
+falta más de lo que se creía. Nunca retrocede, y hay un test que lo fija.
 
 ## Qué se guarda, y qué no
 

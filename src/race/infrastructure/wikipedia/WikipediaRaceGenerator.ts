@@ -1,7 +1,13 @@
 import { RecentTitles } from '../../../shared/RecentTitles'
 import { sameTitle, titleKey } from '../../../shared/titles'
 import type { ArticleSummary } from '../../domain/Article'
-import type { RaceGenerator, RacePair } from '../../domain/ports/RaceGenerator'
+import type {
+  BuildOptions,
+  RaceGenerator,
+  RacePair,
+  RaceProgress,
+  RaceRequest,
+} from '../../domain/ports/RaceGenerator'
 import { isDullTarget } from './dullTargets'
 import { choicesFor, type RaceChoices } from './raceChoices'
 import { pickSeed } from './seeds'
@@ -9,6 +15,12 @@ import type { WikiGraph } from './WikiGraph'
 
 /** Minimum outgoing links for an intermediate step, so the walk never dead-ends. */
 const MIN_STEP_DEGREE = 20
+/**
+ * Minimum outgoing links to open a race with. Curated seeds clear this by a wide
+ * margin, so it only ever bites on a chained opening: a destination is chosen
+ * for being recognisable, which says nothing about how many ways lead out of it.
+ */
+const MIN_ORIGIN_DEGREE = 40
 /**
  * Ceiling on rejected branches. Retrying costs another round trip, and an
  * article whose links are mostly stubs could burn hundreds of them — which the
@@ -47,19 +59,31 @@ export class WikipediaRaceGenerator implements RaceGenerator {
 
   constructor(private readonly graph: WikiGraph) {}
 
-  async buildRacePair(jumps: number, seed: string | null, signal?: AbortSignal): Promise<RacePair> {
+  async buildRacePair(request: RaceRequest, options?: BuildOptions): Promise<RacePair> {
+    const { jumps, seed, from } = request
+    const { signal, onProgress } = options ?? {}
     const choices = choicesFor(seed)
     const shared = seed !== null
 
-    const origin = pickSeed({
-      fraction: (salt) => choices.fraction(salt),
-      pick: (items, salt) => choices.pick(items, salt),
-      ...(shared ? {} : { wasRecentlyUsed: (title) => this.recentOrigins.has(title) }),
-    })
-    if (!shared) this.recentOrigins.remember(origin)
+    // One round trip to open, one per intermediate step, one to choose the
+    // ending. The caller adds its own for the article itself.
+    const progress = progressTracker(jumps + 1, onProgress)
+    progress.begin(OPENING)
+
+    let origin = from ?? this.freshSeed(choices, shared)
+    let links = await this.graph.sampleLinks(origin, choices.fraction('slice 0'), signal)
+    progress.step(WALKING)
+
+    // A destination earned its place by being recognisable, which says nothing
+    // about how many ways lead out of it. Racing out of a dead end is worse than
+    // breaking the chain, so a thin opening falls back to a curated one.
+    if (from !== null && links.length < MIN_ORIGIN_DEGREE) {
+      origin = this.freshSeed(choices, shared)
+      links = await this.graph.sampleLinks(origin, choices.fraction('slice 0'), signal)
+      progress.unplanned(WALKING)
+    }
 
     const walk = [origin]
-    let links = await this.graph.sampleLinks(origin, choices.fraction('slice 0'), signal)
     // A random walk can circle back into the origin's own neighbourhood. Those
     // targets are one click away, which makes for a race that is over before it
     // starts — and the origin's links are already in hand, so ruling them out
@@ -81,20 +105,36 @@ export class WikipediaRaceGenerator implements RaceGenerator {
       const thin = nextLinks.length < MIN_STEP_DEGREE
       if (nextLinks.length === 0 || (thin && retries < MAX_STEP_RETRIES)) {
         retries += 1
+        // A rejected branch cost a real round trip, so it counts as one — and
+        // the estimate grows with it. That is what keeps the number moving
+        // through a run of bad luck instead of sitting still.
+        progress.unplanned(WALKING)
         links = links.filter((title) => title !== next)
         step -= 1
         continue
       }
       walk.push(next)
       links = nextLinks
+      progress.step(step === jumps - 2 ? CHOOSING : WALKING)
     }
 
     const target = await this.pickTarget(links, walk, oneClickAway, choices, shared, signal)
+    progress.step(CHOOSING)
     if (target === null) throw new Error('No se pudo armar una carrera. Probá de nuevo.')
 
     if (!shared) this.recentTargets.remember(target.title)
     walk.push(target.title)
     return { origin: { title: origin }, target, walk }
+  }
+
+  private freshSeed(choices: RaceChoices, shared: boolean): string {
+    const origin = pickSeed({
+      fraction: (salt) => choices.fraction(salt),
+      pick: (items, salt) => choices.pick(items, salt),
+      ...(shared ? {} : { wasRecentlyUsed: (title) => this.recentOrigins.has(title) }),
+    })
+    if (!shared) this.recentOrigins.remember(origin)
+    return origin
   }
 
   /**
@@ -151,5 +191,40 @@ export class WikipediaRaceGenerator implements RaceGenerator {
     return links.filter(
       (title) => !/^\d{1,4}$/.test(title) && !walk.some((seen) => sameTitle(seen, title)),
     )
+  }
+}
+
+const OPENING = 'Buscando por dónde empezar'
+const WALKING = 'Saltando de enlace en enlace'
+const CHOOSING = 'Eligiendo el destino'
+
+/**
+ * Progress measured in finished round trips, never in elapsed time.
+ *
+ * The estimate is honest but not exact — a rejected branch costs a trip nobody
+ * planned for. Rather than stall on a fixed denominator, an unplanned trip
+ * raises both numbers at once, which always moves the fraction forward (`done`
+ * is below `total`, so `(d+1)/(t+1)` beats `d/t`) while admitting there is more
+ * left than we thought.
+ */
+function progressTracker(planned: number, onProgress?: (progress: RaceProgress) => void) {
+  let done = 0
+  let total = planned
+  const emit = (label: string) => {
+    onProgress?.({ done, total, label })
+  }
+  return {
+    begin: (label: string) => {
+      emit(label)
+    },
+    step: (label: string) => {
+      done += 1
+      emit(label)
+    },
+    unplanned: (label: string) => {
+      done += 1
+      total += 1
+      emit(label)
+    },
   }
 }
