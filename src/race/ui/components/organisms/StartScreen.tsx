@@ -1,8 +1,7 @@
-import { formatElapsed } from '../../../../shared/time'
 import { formatDayId } from '../../../domain/DailyChallenge'
 import type { DailyResult, PlayerRecord } from '../../../domain/PlayerRecord'
 import type { RaceProgress } from '../../../domain/ports/RaceGenerator'
-import { jumpsLabel, OUTCOME_HEADLINE, verdict } from '../../copy'
+import { dailySummary, OUTCOME_HEADLINE } from '../../copy'
 import { Button } from '../atoms/Button'
 import { BuildProgress } from '../molecules/BuildProgress'
 import { PlayerStats } from '../molecules/PlayerStats'
@@ -43,17 +42,16 @@ export function StartScreen({
       </h1>
 
       <p className="start__lede">
-        Te toca un artículo de Wikipedia y un destino al que llegar. Se avanza haciendo clic en los
-        enlaces del texto: no hay buscador.
+        De un artículo de Wikipedia a otro, usando solo los enlaces del texto.
       </p>
 
-      <ul className="start__rules">
-        <li>Tenés {minutes} minutos.</li>
-        {/* "o menos" no es un matiz: la caminata puede quedar corta si se topa
-            con un artículo sin salidas, y prometer un número exacto sería falso. */}
-        <li>Siempre hay solución: el destino está a {jumps} saltos o menos.</li>
-        <li>Al terminar ves tu camino y cuál era el más corto.</li>
-      </ul>
+      {/* Las reglas caben en un renglón. Eran una lista con líneas divisorias
+          que ocupaba media pantalla para decir tres números — y el que ya jugó
+          una vez no vuelve a leerlas. "o menos" no es un matiz: la caminata
+          puede quedar corta, y prometer un número exacto sería falso. */}
+      <p className="start__facts">
+        {minutes} minutos · a {jumps} saltos o menos · sin buscador
+      </p>
 
       <PlayerStats record={record} />
 
@@ -75,41 +73,21 @@ export function StartScreen({
           </Button>
         </div>
       )}
-
-      {!preparing && dailyResult === null && (
-        <p className="start__note">
-          El desafío del día es el mismo para todo el mundo, y se juega una sola vez.
-        </p>
-      )}
     </main>
   )
 }
 
-/**
- * Today's result, in the same order the result panel uses: what happened, how it
- * compares, then the details. Repeating that shape is the point — the player has
- * already read it once today.
- */
 function DailyCard({ result }: { readonly result: DailyResult }) {
+  const summary = dailySummary(result)
+
   return (
     <section className="daily-card">
-      <p className="daily-card__day">Desafío del {formatDayId(result.dayId)}</p>
+      <p className="daily-card__day">Desafío del {formatDayId(result.dayId)} · volvé mañana</p>
       <p className="daily-card__headline">{OUTCOME_HEADLINE[result.outcome]}</p>
-
-      {result.bestJumps !== null && (
-        <p className="daily-card__verdict">
-          {verdict(result.outcome, result.jumps, result.bestJumps)}
-        </p>
-      )}
-
       <p className="daily-card__route">
         {result.origin} <span aria-hidden="true">→</span> {result.target}
       </p>
-      <p className="daily-card__detail">
-        {jumpsLabel(result.jumps)} · {formatElapsed(result.elapsedMs)}
-      </p>
-
-      <p className="daily-card__detail daily-card__detail--muted">Mañana hay uno nuevo.</p>
+      {summary !== '' && <p className="daily-card__detail">{summary}</p>}
     </section>
   )
 }

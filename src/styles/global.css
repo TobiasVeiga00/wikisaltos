@@ -177,35 +177,23 @@ body {
   color: var(--ink-soft);
 }
 
-/*
- * The first row already pads itself below the rule, so the container's gap on
- * top of that would leave twice as much air above the line as below it.
- */
-.start__rules {
-  margin: -0.7rem 0 0;
-  padding: 0;
-  list-style: none;
-  width: 100%;
-  border-top: 1px solid var(--rule);
+/* Las tres reglas del juego en un renglón, pegadas a la entrada. */
+.start__facts {
+  margin: -0.9rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
 }
 
-.start__rules li {
-  padding: 0.7rem 0;
-  border-bottom: 1px solid var(--rule);
-  font-size: 0.95rem;
-  color: var(--ink-soft);
-}
-
-/* Cuatro números en una fila, sin cajas: la misma regla que el resto de la
-   pantalla de inicio. Sin borde propio a propósito — el último ítem de la lista
-   de reglas ya cierra con una línea, y agregar otra dibuja dos separadas por el
-   gap. */
+/* Cuatro números en una fila, sin cajas. La única línea de la pantalla separa
+   lo que explica el juego de lo que cuenta tus partidas. */
 .stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 0.25rem 1.25rem;
   margin: 0;
   width: 100%;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
 }
 
 .stats__item {
@@ -254,15 +242,10 @@ body {
   font-weight: 800;
 }
 
-.daily-card__verdict {
-  margin: 0.2rem 0 0;
+.daily-card__route {
+  margin: 0.3rem 0 0;
   font-size: 0.95rem;
   color: var(--ink-soft);
-}
-
-.daily-card__route {
-  margin: 0.6rem 0 0;
-  font-size: 0.95rem;
 }
 
 .daily-card__detail {
@@ -270,11 +253,6 @@ body {
   font-size: 0.9rem;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
-}
-
-.daily-card__detail--muted {
-  margin-top: 0.7rem;
-  font-size: 0.85rem;
 }
 
 /* La barra no se anima con transiciones largas: cada avance es un viaje a
@@ -327,13 +305,6 @@ body {
   flex-wrap: wrap;
   gap: 0.75rem;
   align-items: center;
-}
-
-.start__note {
-  margin: -0.5rem 0 0;
-  font-size: 0.85rem;
-  color: var(--muted);
-  max-width: 26rem;
 }
 
 .start__error {
