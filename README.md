@@ -14,8 +14,8 @@ todo en el navegador.
   al volver al menú: eso es navegación, no una derrota.
 - Al ganar podés **seguir desde el destino**: la carrera siguiente arranca donde terminó
   la anterior. Si perdés, la cadena se corta junto con la racha.
-- Hay un **desafío del día**: la misma carrera para todo el mundo, y un botón para copiar
-  tu resultado y compararlo con quien quieras. Se juega **una sola vez por día**.
+- Hay un **desafío del día**: la misma carrera para todo el mundo. Se juega **una sola vez
+  por día**.
 - El navegador recuerda tus jugadas, tu racha actual y tu mejor racha histórica.
 
 Se puede jugar entero con el teclado: Tab para moverte entre enlaces, Enter para saltar.

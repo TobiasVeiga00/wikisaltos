@@ -1,10 +1,8 @@
-import { useState } from 'react'
 import { formatElapsed } from '../../../../shared/time'
 import { sameTitle } from '../../../../shared/titles'
 import { formatDayId } from '../../../domain/DailyChallenge'
 import { jumps as countJumps, type Race, type RaceOutcome } from '../../../domain/Race'
 import type { RaceProgress } from '../../../domain/ports/RaceGenerator'
-import { shareResult } from '../../../domain/ShareResult'
 import { Button } from '../atoms/Button'
 import { BuildProgress } from '../molecules/BuildProgress'
 import { Spinner } from '../atoms/Spinner'
@@ -15,8 +13,6 @@ const HEADLINE: Record<RaceOutcome, string> = {
   surrendered: 'Abandonaste',
   timeout: 'Se acabó el tiempo',
 }
-
-const COPIED_MS = 2000
 
 const jumpsLabel = (count: number) => `${count} ${count === 1 ? 'salto' : 'saltos'}`
 
@@ -62,7 +58,6 @@ export function ResultPanel({
   onPlayAgain,
   onGoHome,
 }: ResultPanelProps) {
-  const [copied, setCopied] = useState(false)
   const outcome = race.outcome
   if (outcome === null) return null
 
@@ -76,15 +71,6 @@ export function ResultPanel({
   const identical = bestPath !== null && samePath(playerPath, bestPath)
   const alternative = bestPath !== null && !identical && bestJumps === playerJumps
   const bestHeading = alternative ? 'Otro camino igual de corto' : 'El camino más corto'
-
-  const copy = () => {
-    void navigator.clipboard.writeText(shareResult(race, bestJumps)).then(() => {
-      setCopied(true)
-      window.setTimeout(() => {
-        setCopied(false)
-      }, COPIED_MS)
-    })
-  }
 
   return (
     <section className="result">
@@ -155,9 +141,6 @@ export function ResultPanel({
           ) : (
             <Button onClick={onPlayAgain}>Carrera nueva</Button>
           )}
-          <Button variant="ghost" onClick={copy} disabled={bestPath === null}>
-            {copied ? 'Copiado' : 'Copiar resultado'}
-          </Button>
           <Button variant="ghost" onClick={onGoHome}>
             Volver al inicio
           </Button>
