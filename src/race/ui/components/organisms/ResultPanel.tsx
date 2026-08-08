@@ -1,31 +1,16 @@
 import { formatElapsed } from '../../../../shared/time'
 import { sameTitle } from '../../../../shared/titles'
 import { formatDayId } from '../../../domain/DailyChallenge'
-import { jumps as countJumps, type Race, type RaceOutcome } from '../../../domain/Race'
+import { jumps as countJumps, type Race } from '../../../domain/Race'
 import type { RaceProgress } from '../../../domain/ports/RaceGenerator'
 import { Button } from '../atoms/Button'
 import { BuildProgress } from '../molecules/BuildProgress'
 import { Spinner } from '../atoms/Spinner'
 import { RouteList } from '../molecules/RouteList'
-
-const HEADLINE: Record<RaceOutcome, string> = {
-  won: 'Llegaste',
-  surrendered: 'Abandonaste',
-  timeout: 'Se acabó el tiempo',
-}
-
-const jumpsLabel = (count: number) => `${count} ${count === 1 ? 'salto' : 'saltos'}`
+import { jumpsLabel, OUTCOME_HEADLINE, verdict } from '../../copy'
 
 const samePath = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((title, index) => sameTitle(title, b[index] ?? ''))
-
-/** The one sentence the panel exists to deliver: how this run compares to the best one. */
-function verdict(outcome: RaceOutcome, playerJumps: number, bestJumps: number): string {
-  if (outcome !== 'won') return `Se podía llegar en ${jumpsLabel(bestJumps)}.`
-  if (playerJumps === bestJumps) return 'Nadie podía llegar en menos saltos.'
-  const extra = playerJumps - bestJumps
-  return `El camino más corto era de ${jumpsLabel(bestJumps)}: ${jumpsLabel(extra)} de más.`
-}
 
 interface ResultPanelProps {
   readonly race: Race
@@ -78,7 +63,7 @@ export function ResultPanel({
         {race.dayId !== null && (
           <p className="result__day">Desafío del {formatDayId(race.dayId)}</p>
         )}
-        <h2 className="result__headline">{HEADLINE[outcome]}</h2>
+        <h2 className="result__headline">{OUTCOME_HEADLINE[outcome]}</h2>
         {bestJumps !== null && (
           <p className="result__verdict">{verdict(outcome, playerJumps, bestJumps)}</p>
         )}

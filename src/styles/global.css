@@ -254,20 +254,27 @@ body {
   font-weight: 800;
 }
 
-.daily-card__route {
-  margin: 0.35rem 0 0;
+.daily-card__verdict {
+  margin: 0.2rem 0 0;
   font-size: 0.95rem;
   color: var(--ink-soft);
 }
 
+.daily-card__route {
+  margin: 0.6rem 0 0;
+  font-size: 0.95rem;
+}
+
 .daily-card__detail {
-  margin: 0.35rem 0 0;
+  margin: 0.15rem 0 0;
   font-size: 0.9rem;
-  color: var(--ink-soft);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .daily-card__detail--muted {
-  color: var(--muted);
+  margin-top: 0.7rem;
+  font-size: 0.85rem;
 }
 
 /* La barra no se anima con transiciones largas: cada avance es un viaje a

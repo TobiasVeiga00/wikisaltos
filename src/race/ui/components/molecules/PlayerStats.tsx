@@ -11,12 +11,13 @@ interface PlayerStatsProps {
 export function PlayerStats({ record }: PlayerStatsProps) {
   if (record.played === 0) return null
 
-  const rate = Math.round((record.won / record.played) * 100)
-
   return (
     <dl className="stats">
       <Stat label="Jugadas" value={record.played} />
-      <Stat label="Ganadas" value={`${String(rate)}%`} />
+      {/* Un porcentaje al lado de la palabra "Ganadas" se lee como si fuera la
+          cantidad: "25%" parecía veinticinco. El número crudo, con las jugadas
+          justo al lado, no admite esa lectura. */}
+      <Stat label="Ganadas" value={record.won} />
       <Stat label="Racha" value={record.streak} />
       <Stat label="Mejor racha" value={record.bestStreak} />
     </dl>
